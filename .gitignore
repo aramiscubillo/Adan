@@ -45,3 +45,12 @@ nbbuild/
 dist/
 nbdist/
 .nb-gradle/
+frontend/src/main/frontend/e2e/*.js
+frontend/src/main/frontend/e2e/*.map
+
+frontend/src/main/frontend/node_modules/
+frontend/src/main/frontend/node/
+
+frontend/src/main/frontend/dist/
+frontend/src/main/frontend/tmp/
+frontend/src/main/frontend/out-tsx/
