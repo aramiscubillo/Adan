@@ -42,8 +42,24 @@
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
 		</dependency>
+	
+		    <dependency>
+		        <groupId>de.tuberlin</groupId>
+		        <artifactId>onedrivesdk</artifactId>
+		        <version>0.0.4-SNAPSHOT</version>
+		    </dependency>
+		</dependencies>
 		
-    </dependencies>
+		<repositories>
+		    <repository>
+		        <id>de.tuberlin</id>
+		        <url>https://raw.github.com/tawalaya/onedrivejavasdk/mvn-repo/</url>
+		        <snapshots>
+		            <enabled>true</enabled>
+		            <updatePolicy>always</updatePolicy>
+		        </snapshots>
+		    </repository>
+		</repositories>
 
     <build>
         <plugins>
