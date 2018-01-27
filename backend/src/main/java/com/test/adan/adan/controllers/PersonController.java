@@ -7,7 +7,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,7 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.test.adan.adan.contracts.BaseResponse;
+import com.test.adan.adan.exceptions.NotFoundException;
+import com.test.adan.adan.exceptions.UnauthorizedException;
 import com.test.adan.adan.jpa.Person;
 import com.test.adan.adan.pojos.PersonPOJO;
 import com.test.adan.adan.services.PersonService;
@@ -43,6 +43,13 @@ public class PersonController {
 			
 			person = personService.get(id);
 			
+			if(person == null){
+				//this is how to handle exceptions
+				//No va a funcionar el holi hasta que se quite el reason
+				//en la declaracion de la clase
+				throw new NotFoundException("holi");
+			}
+			
 			pojo.setId(person.getId());
 			pojo.setName(person.getName());
 			pojo.setLastName(person.getLastName());
@@ -61,14 +68,19 @@ public class PersonController {
 	
 	
 	@RequestMapping(value = "/api/person", method = RequestMethod.GET)
-	public List<PersonPOJO> getPersons() {
+	public List<PersonPOJO> getPersons() throws UnauthorizedException {
 
 		PersonPOJO pojo;
 		List<PersonPOJO> list = new ArrayList<PersonPOJO>();
-		
+
 		try{
 			
 			List<Person> persons = personService.getAll();
+			
+			if(persons.size()==0){
+				//this is how to handle exceptions
+				throw new NotFoundException();
+			}
 			
 			for(Person p:persons){
 				pojo = new PersonPOJO();
@@ -87,6 +99,7 @@ public class PersonController {
 			e.printStackTrace(pw);
 			throw e;
 		}
+		
 
 	}
 	
@@ -107,12 +120,19 @@ public class PersonController {
 			
 			return pojo;
 		
-		} catch (Exception e) {
+		}catch (NullPointerException e) {
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			throw new NotFoundException();
+		} 
+		catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			e.printStackTrace(pw);
 			throw e;
 		}
+		
 
 	}
 	
@@ -131,7 +151,8 @@ public class PersonController {
 			
 			return pojo;
 		
-		} catch (Exception e) {
+		} 
+		catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
 			e.printStackTrace(pw);
