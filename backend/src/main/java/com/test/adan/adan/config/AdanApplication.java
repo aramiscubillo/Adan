@@ -43,6 +43,6 @@ public class AdanApplication {
 	
 	public static void main(String[] args) {
 		SpringApplication.run(AdanApplication.class, args);
-		OneDriveSession = OneDriveAPI.OneDriveAccount(ApplicationId, new String[]{"offline_access","files.readwrite.all"}, "https://a6c40991.ngrok.io/api/oneDrive/oAuthCode", ApplicationSecret);
+		OneDriveSession = OneDriveAPI.OneDriveAccount(ApplicationId, new String[]{"offline_access","files.readwrite.all"}, "https://a79c8cf5.ngrok.io/api/oneDrive/oAuthCode", ApplicationSecret);
 	}
 }

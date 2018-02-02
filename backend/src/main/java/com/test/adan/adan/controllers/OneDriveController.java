@@ -85,5 +85,22 @@ public class OneDriveController {
 		return null;
 
 	}
+	
+	@RequestMapping(value = "/getRoot", method = RequestMethod.GET)
+	public BaseResponse getRoot() throws Exception {
+	
+		try{
+			 
+			OneDriveAPI.getRoot(AdanApplication.OneDriveSession);
+
+		} catch (Exception e) {
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			throw e;
+		}
+		return null;
+
+	}
 
 }
