@@ -9,6 +9,9 @@ import { PersonService } from '../person.service';
 })
 export class PersonListComponent implements OnInit {
 
+
+  //@Input() public Person: Message[];
+
   constructor(private personService: PersonService) { }
 
   persons : Person[];
