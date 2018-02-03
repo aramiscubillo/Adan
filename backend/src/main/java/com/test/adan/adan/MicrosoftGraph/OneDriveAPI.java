@@ -11,6 +11,7 @@ import java.util.TreeMap;
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,14 +19,20 @@ import org.springframework.stereotype.Component;
 
 import com.test.adan.adan.MicrosoftGraph.HTTPApi;
 
+
 public class OneDriveAPI {
 	
-	private static final TreeMap<String,String> URLS = new TreeMap<String,String>();
+	private static final TreeMap<String,TreeMap<String,String>> URLS = new TreeMap<String,TreeMap<String,String>>(){{
+		put("ACCESS-TOKEN",new TreeMap<String,String>(){{
+			put("URL","https://login.microsoftonline.com/common/oauth2/v2.0/token");
+			put("Content-Type","application/x-www-form-urlencoded");
+		}});
+		put("ROOT",new TreeMap<String,String>(){{
+			put("URL","https://graph.microsoft.com/v1.0/drive/root/children");
+			put("Content-Type","application/json");
+		}});
+	}};
 	
-	@PostConstruct
-	public void initURLS(){
-		URLS.put("ROOT","https://graph.microsoft.com/v1.0/drive/root");
-	}
 	public static OneDriveAccount OneDriveAccount(String clientId, String[] scope, String redirectURI, String clientSecret){
 		String url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=";
 		url+=clientId+"&scope=";
@@ -54,11 +61,12 @@ public class OneDriveAPI {
 		TreeMap<String, String> parameters = new TreeMap<String, String>();
 		parameters.put("client_id", account.getApplicationId());
 		parameters.put("redirect_uri", account.getRedirectURI());
-		parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
+		//parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
+		parameters.put("client_secret", account.getApplicationSecret());
 		parameters.put("code", code);
 		parameters.put("grant_type", "authorization_code");
 		
-		response=HTTPApi.sendPOST("https://login.microsoftonline.com/common/oauth2/v2.0/token", parameters);
+		response=HTTPApi.sendPOST(URLS.get("ACCESS-TOKEN"), parameters);
 		
 		account.createSession(response.getBody().getString("access_token"), response.getBody().getString("refresh_token"));
 	}
@@ -69,52 +77,109 @@ public class OneDriveAPI {
 		TreeMap<String, String> parameters = new TreeMap<String, String>();
 		parameters.put("client_id", account.getApplicationId());
 		parameters.put("redirect_uri", account.getRedirectURI());
-		parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
+		//parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
+		parameters.put("client_secret", account.getApplicationSecret());
 		parameters.put("refresh_token", account.getRefreshToken());
 		parameters.put("grant_type", "refresh_token");
 		
-		response=HTTPApi.sendPOST("https://login.microsoftonline.com/common/oauth2/v2.0/token", parameters);
+		response=HTTPApi.sendPOST(URLS.get("ACCESS-TOKEN"), parameters);
 		
 		account.createSession(response.getBody().getString("access_token"), response.getBody().getString("refresh_token"));
 	}
 	
 	public static List<ODItem> getRoot(OneDriveAccount account) throws IOException, JSONException{
 		List<ODItem> items = new ArrayList<ODItem>();
-		List<JSONObject> jsonItems = new ArrayList<JSONObject>();
+		//List<JSONObject> jsonItems = new ArrayList<JSONObject>();
 		boolean error=false;
-		HTTPResponse response = HTTPApi.sendGET("http://localhost:8080/api/oneDrive/getRoot", null, getBaseAuthHeaders(account));
+		HTTPResponse response = HTTPApi.sendGET(URLS.get("ROOT"), null, getBaseAuthHeaders(account));
 		int x=0;
-		do{
-			try {
-				jsonItems.add(response.getBody().getJSONObject(String.valueOf(x)));
-				System.out.println(response.getBody().getString(String.valueOf(x)));
-				x++;
-			} catch (Exception e) {
-				StringWriter sw = new StringWriter();
-				PrintWriter pw = new PrintWriter(sw);
-				e.printStackTrace(pw);
-				error = true;
-			}
-		}while(!error);
-	
+		items=serializeItems(response.getBody().getJSONArray("value"));
+			
 		return items;
 	}
 	
-	private static List<ODItem> serializeItems(JSONObject object){
+	private static List<ODItem> serializeItems(JSONArray objects) throws NumberFormatException, JSONException{
 		List<ODItem> items = new ArrayList<ODItem>();
+		for(int x=0;x<objects.length();x++){
+			JSONObject object=objects.getJSONObject(x);
+			try {
+				items.add(serializeFile(object));
+			} catch (JSONException e) {
+				if(e.getMessage().equals("JSONObject[\"file\"] not found.")){
+					try {
+						items.add(serializeFolder(object));	
+					} catch (JSONException ex) {
+						if(!e.getMessage().equals("JSONObject[\"folder\"] not found.")){
+							throw ex;
+						}
+					}
+				}else{
+					throw e;
+				}
+			}
+		}
 		
 		return items;
 	}
 	
-	private static ODFile serializeFile(JSONObject object){
-		ODFile file = new ODFile();
+	private static ODFile serializeFile(JSONObject object) throws NumberFormatException, JSONException{
+		String parentName;
+		try {
+			parentName=object.getJSONObject("parentReference").getString("name");
+		} catch (JSONException ex) {
+			if(ex.getMessage().equals("JSONObject[\"name\"] not found.")){
+				parentName="root";
+			}else{
+				throw ex;
+			}
+		}
+		ODFile file = new ODFile(object.getJSONObject("createdBy").getJSONObject("user").getString("displayName"),
+				object.getJSONObject("createdBy").getJSONObject("user").getString("id"),
+				object.getString("id"),
+				object.getString("createdDateTime"),
+				object.getString("lastModifiedDateTime"),
+				object.getJSONObject("lastModifiedBy").getJSONObject("user").getString("displayName"),
+				object.getJSONObject("createdBy").getJSONObject("user").getString("id"),
+				object.getString("name"),
+				object.getJSONObject("parentReference").getString("driveId"),
+				object.getJSONObject("parentReference").getString("id"),
+				parentName,
+				object.getJSONObject("parentReference").getString("path"),
+				object.getInt("size"),
+				object.getString("webUrl"),
+				"File",
+				object.getJSONObject("file").getString("mimeType"));
 		
 		return file;
 	}
 	
-	private static ODFolder serializeFolder(JSONObject object){
-		ODFolder folder = new ODFolder();
-		
+	private static ODFolder serializeFolder(JSONObject object) throws NumberFormatException, JSONException{
+		String parentName;
+		try {
+			parentName=object.getJSONObject("parentReference").getString("name");
+		} catch (JSONException ex) {
+			if(ex.getMessage().equals("JSONObject[\"name\"] not found.")){
+				parentName="root";
+			}else{
+				throw ex;
+			}
+		}
+		ODFolder folder = new ODFolder(object.getJSONObject("createdBy").getJSONObject("user").getString("displayName"),
+				object.getJSONObject("createdBy").getJSONObject("user").getString("id"),
+				object.getString("id"),
+				object.getString("createdDateTime"),
+				object.getString("lastModifiedDateTime"),
+				object.getJSONObject("lastModifiedBy").getJSONObject("user").getString("displayName"),
+				object.getJSONObject("createdBy").getJSONObject("user").getString("id"),
+				object.getString("name"),
+				object.getJSONObject("parentReference").getString("driveId"),
+				object.getJSONObject("parentReference").getString("id"),
+				parentName,
+				object.getJSONObject("parentReference").getString("path"),
+				object.getInt("size"),
+				object.getString("webUrl"),
+				"Folder",
+				object.getJSONObject("folder").getInt("childCount"));
 		return folder;
 	}
 	
@@ -122,6 +187,7 @@ public class OneDriveAPI {
 		TreeMap<String, String> BASE_AUTH_HEADER = new TreeMap<String,String>();
 
 		BASE_AUTH_HEADER.put("Authorization", "bearer "+oneDriveAccount.getAccessToken());
+		BASE_AUTH_HEADER.put("Accept", "application/json, text/html, text/plain, image/gif, image/jpeg, */*; q=0.2, */*; q=0.2");
 		
 		return BASE_AUTH_HEADER;
 	}

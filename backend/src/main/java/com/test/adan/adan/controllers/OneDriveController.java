@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +32,9 @@ import com.test.adan.adan.contracts.BaseResponse;
 import com.test.adan.adan.jpa.Person;
 import com.test.adan.adan.pojos.PersonPOJO;
 import com.test.adan.adan.MicrosoftGraph.HTTPApi;
+import com.test.adan.adan.MicrosoftGraph.ODFile;
+import com.test.adan.adan.MicrosoftGraph.ODFolder;
+import com.test.adan.adan.MicrosoftGraph.ODItem;
 import com.test.adan.adan.MicrosoftGraph.OneDriveAPI;
 import com.test.adan.adan.config.AdanApplication;
 
@@ -74,7 +78,7 @@ public class OneDriveController {
 	
 		try{
 			 
-			OneDriveAPI.reloadSession(AdanApplication.OneDriveSession);
+			OneDriveAPI.reloadSession (AdanApplication.OneDriveSession);
 
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
@@ -91,8 +95,28 @@ public class OneDriveController {
 	
 		try{
 			 
-			OneDriveAPI.getRoot(AdanApplication.OneDriveSession);
+			List<ODItem> list = OneDriveAPI.getRoot(AdanApplication.OneDriveSession);
 
+			System.out.println("**********************************************");
+			for(ODItem item:list){
+				if(item.getType().equals("File")){
+					ODFile file = (ODFile)item;
+					System.out.println("Type: "+file.getType());
+					System.out.println("Name: "+file.getName());
+					System.out.println("Creator: "+file.getCreatorName());
+					System.out.println("Size: "+file.getSize());
+					System.out.println("File Type: "+file.getMimeType());
+				}else if(item.getType().equals("Folder")){
+					ODFolder folder = (ODFolder)item;
+					System.out.println("Type: "+folder.getType());
+					System.out.println("Name: "+folder.getName());
+					System.out.println("Creator: "+folder.getCreatorName());
+					System.out.println("Size: "+folder.getSize());
+					System.out.println("Cant Items: "+folder.getChildCount());
+				}
+				System.out.println("---------------------------");
+			}
+			System.out.println("**********************************************");
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);

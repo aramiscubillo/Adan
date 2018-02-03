@@ -10,13 +10,10 @@ public class ODFolder extends ODItem{
 	
 	public ODFolder(String creatorName, String creatorId, String id, String createdDate, String lastModifiedDate,
 			String lastModifiedByName, String lastModifiedById, String name, String parentDriveId,
-			String parentFolderId, String parentFolderName, String parentPaht, int size, String webUrl, String type, int childCount,
-			List<ODFile> files, List<ODFolder> folders) {
+			String parentFolderId, String parentFolderName, String parentPaht, int size, String webUrl, String type, int childCount) {
 		super(creatorName, creatorId, id, createdDate, lastModifiedDate, lastModifiedByName, lastModifiedById, name,
 				parentDriveId, parentFolderId, parentFolderName, parentPaht, size, webUrl, type);
 		this.childCount = childCount;
-		this.files = files;
-		this.folders = folders;
 	}
 
 	public ODFolder(){
