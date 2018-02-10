@@ -5,6 +5,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -31,6 +33,15 @@ public class OneDriveAPI {
 			put("URL","https://graph.microsoft.com/v1.0/drive/root/children");
 			put("Content-Type","application/json");
 		}});
+		put("FOLDER",new TreeMap<String,String>(){{
+			put("URL","https://graph.microsoft.com/v1.0/drive/root:/[Folder]:/children");
+			put("Content-Type","application/json");
+		}});
+		put("SUBSCRIPTION",new TreeMap<String,String>(){{
+			put("URL","https://graph.microsoft.com/v1.0/subscriptions");
+			put("Content-Type","application/json");
+		}});
+		
 	}};
 	
 	public static OneDriveAccount OneDriveAccount(String clientId, String[] scope, String redirectURI, String clientSecret){
@@ -48,7 +59,8 @@ public class OneDriveAPI {
 		}
 		url+="&response_type=code&redirect_uri="+redirectURI;
 		
-		System.out.println("Please go to the following URL to authorize the account to be used: "+url);
+		System.out.println("Please go to the following URL to authorize the account to be used:");
+		System.out.println(url);
 		
 		new OneDriveAccount(clientId, clientSecret, redirectURI);
 		
@@ -61,7 +73,6 @@ public class OneDriveAPI {
 		TreeMap<String, String> parameters = new TreeMap<String, String>();
 		parameters.put("client_id", account.getApplicationId());
 		parameters.put("redirect_uri", account.getRedirectURI());
-		//parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
 		parameters.put("client_secret", account.getApplicationSecret());
 		parameters.put("code", code);
 		parameters.put("grant_type", "authorization_code");
@@ -69,6 +80,7 @@ public class OneDriveAPI {
 		response=HTTPApi.sendPOST(URLS.get("ACCESS-TOKEN"), parameters);
 		
 		account.createSession(response.getBody().getString("access_token"), response.getBody().getString("refresh_token"));
+		
 	}
 	
 	public static void reloadSession(OneDriveAccount account) throws IOException, JSONException{
@@ -77,7 +89,6 @@ public class OneDriveAPI {
 		TreeMap<String, String> parameters = new TreeMap<String, String>();
 		parameters.put("client_id", account.getApplicationId());
 		parameters.put("redirect_uri", account.getRedirectURI());
-		//parameters.put("client_secret", URLEncoder.encode(account.getApplicationSecret(),"UTF-8"));
 		parameters.put("client_secret", account.getApplicationSecret());
 		parameters.put("refresh_token", account.getRefreshToken());
 		parameters.put("grant_type", "refresh_token");
@@ -89,11 +100,42 @@ public class OneDriveAPI {
 	
 	public static List<ODItem> getRoot(OneDriveAccount account) throws IOException, JSONException{
 		List<ODItem> items = new ArrayList<ODItem>();
-		//List<JSONObject> jsonItems = new ArrayList<JSONObject>();
 		boolean error=false;
 		HTTPResponse response = HTTPApi.sendGET(URLS.get("ROOT"), null, getBaseAuthHeaders(account));
-		int x=0;
-		items=serializeItems(response.getBody().getJSONArray("value"));
+		
+		if(response.getCode()==200){
+			items=serializeItems(response.getBody().getJSONArray("value"));
+		}else if(response.isNeedRenew()){
+			reloadSession(account);
+			items=getRoot(account);
+		}
+			
+		return items;
+	}
+	
+	public static List<ODItem> subscribeWebHook(OneDriveAccount account, String subscribeItemURL, String webHookURL) throws IOException, JSONException{
+		List<ODItem> items = new ArrayList<ODItem>();
+		
+		Calendar c = Calendar.getInstance();
+		c.setTime(new Date());
+		c.add(Calendar.YEAR, 100);
+		Date newDate = c.getTime();
+		
+		TreeMap<String, String> parameters = new TreeMap<String, String>();
+		parameters.put("changeType", "updated");
+		parameters.put("notificationUrl", webHookURL);
+		parameters.put("resource", subscribeItemURL);
+		parameters.put("expirationDateTime", newDate.toString());
+		parameters.put("clientState", "client-specific string");
+		
+		HTTPResponse response = HTTPApi.sendPOST(URLS.get("SUBSCRIPTION"), parameters, getBaseAuthHeaders(account));
+		
+		if(response.getCode()==200){
+			items=serializeItems(response.getBody().getJSONArray("value"));
+		}else if(response.isNeedRenew()){
+			reloadSession(account);
+			items=getRoot(account);
+		}
 			
 		return items;
 	}

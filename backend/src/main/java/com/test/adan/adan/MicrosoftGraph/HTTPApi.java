@@ -2,6 +2,7 @@ package com.test.adan.adan.MicrosoftGraph;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -9,12 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.apache.catalina.util.URLEncoder;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONException;
@@ -89,11 +93,7 @@ public class HTTPApi {
 		request.addHeader("Content-Type",configuration.get("Content-Type"));
 		
 		if(parameters!=null&&parameters.size()>0){
-			List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-			for(Map.Entry<String, String> entry : parameters.entrySet()){
-				urlParameters.add(new BasicNameValuePair(entry.getKey(),entry.getValue()));
-			}
-			request.setEntity(new UrlEncodedFormEntity(urlParameters));
+			setParametersFromContentType(parameters, configuration.get("Content-Type"), request);
 		}	
 		
 		return doRequest(request);
@@ -116,11 +116,7 @@ public class HTTPApi {
 		}
 		
 		if(parameters!=null&&parameters.size()>0){
-			List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
-			for(Map.Entry<String, String> entry : parameters.entrySet()){
-				urlParameters.add(new BasicNameValuePair(entry.getKey(),entry.getValue()));
-			}
-			request.setEntity(new UrlEncodedFormEntity(urlParameters));
+			setParametersFromContentType(parameters, configuration.get("Content-Type"), request);
 		}	
 		
 		return doRequest(request);
@@ -129,59 +125,69 @@ public class HTTPApi {
 	private static HTTPResponse doRequest(HttpRequestBase request) throws IOException, JSONException{
 
 		HttpClient client = HttpClientBuilder.create().build();
+		HTTPResponse MSResponse; 
 		
-		org.apache.http.HttpResponse responseEntity= client.execute(request);
+		HttpResponse responseEntity= client.execute(request);
 		
-		int responseCode = responseEntity.getStatusLine().getStatusCode();
-		String responseMessage = responseEntity.getStatusLine().getReasonPhrase();
-		System.out.println("Code: "+responseCode+" - Message Code: "+responseMessage);
-		BufferedReader in;
-		if(responseCode==200){
-			in = new BufferedReader(new InputStreamReader(responseEntity.getEntity().getContent()));
-		}else{
-			in = new BufferedReader(new InputStreamReader(responseEntity.getEntity().getContent()));			
-		}
-		String inputLine;
-		StringBuffer response = new StringBuffer();
-		String newLine = System.getProperty("line.separator");
 		
-		while((inputLine = in.readLine())!= null){
-			response.append(inputLine);
-			response.append(newLine);
-		}
-		
-		in.close();
-		
-		System.out.println(response.toString());
+		JSONObject responseContent = getResponseJSONObject(responseEntity.getEntity().getContent());
+		MSResponse = new HTTPResponse(responseEntity.getStatusLine().getStatusCode(),responseEntity.getStatusLine().getReasonPhrase(),responseContent);
 
-		return new HTTPResponse(responseCode,responseMessage,new JSONObject(response.toString()));
+		System.out.println("Code: "+MSResponse.getCode()+" - Message Code: "+MSResponse.getMessage());
+		System.out.println(responseContent);
+		
+		if(MSResponse.getCode()==200){
+			MSResponse.setNeedRenew(false);
+		}else{
+			try {
+				if(responseContent.getJSONObject("error").getString("code").equals("InvalidAuthenticationToken")){
+					MSResponse.setNeedRenew(true);
+				}
+			} catch (Exception e) {
+				MSResponse.setNeedRenew(false);
+				throw e;
+			}
+		}
+		return MSResponse;
 	}
 	
-	/*private static HTTPResponse doRequest(HttpURLConnection connection) throws IOException, JSONException{
-		int responseCode = connection.getResponseCode();
-		String responseMessage = connection.getResponseMessage();
-		System.out.println("Code: "+responseCode+" - Message Code: "+responseMessage);
+	private static JSONObject getResponseJSONObject(InputStream responseContent) throws IOException, JSONException{
+		JSONObject response;
+		
 		BufferedReader in;
-		if(responseCode==HttpURLConnection.HTTP_OK){
-			in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-		}else{
-			in = new BufferedReader(new InputStreamReader(connection.getErrorStream()));			
-		}
+		in = new BufferedReader(new InputStreamReader(responseContent));
+		
 		String inputLine;
-		StringBuffer response = new StringBuffer();
+		StringBuffer responseS = new StringBuffer();
 		String newLine = System.getProperty("line.separator");
 		
 		while((inputLine = in.readLine())!= null){
-			response.append(inputLine);
-			response.append(newLine);
+			responseS.append(inputLine);
+			responseS.append(newLine);
 		}
 		
 		in.close();
 		
-		System.out.println(response.toString());
-
-		return new HTTPResponse(responseCode,responseMessage,new JSONObject(response.toString()));
-	}*/
+		response = new JSONObject(responseS.toString());
+		
+		return response;
+	}
+	
+	private static void setParametersFromContentType(TreeMap<String,String> parameters, String content, HttpPost request) throws UnsupportedEncodingException{
+		if(content.equals("application/x-www-form-urlencoded")){
+			List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
+			for(Map.Entry<String, String> entry : parameters.entrySet()){
+				urlParameters.add(new BasicNameValuePair(entry.getKey(),entry.getValue()));
+			}
+			request.setEntity(new UrlEncodedFormEntity(urlParameters));
+		}else if(content.equals("application/json")){
+			for(Map.Entry<String, String> entry : parameters.entrySet()){
+				entry.setValue((new URLEncoder()).encode(entry.getValue(),"UTF-8"));
+			}
+			String json = new JSONObject(parameters).toString();
+			request.setEntity(new StringEntity(json));
+		}
+	}
 	
 	private static String getDataString(TreeMap<String, String> params) throws UnsupportedEncodingException{
 	    StringBuilder result = new StringBuilder();

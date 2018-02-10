@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -109,10 +110,12 @@ public class OneDriveController {
 				}else if(item.getType().equals("Folder")){
 					ODFolder folder = (ODFolder)item;
 					System.out.println("Type: "+folder.getType());
+					System.out.println("Id: "+folder.getId());
 					System.out.println("Name: "+folder.getName());
 					System.out.println("Creator: "+folder.getCreatorName());
 					System.out.println("Size: "+folder.getSize());
 					System.out.println("Cant Items: "+folder.getChildCount());
+					System.out.println("Type: "+folder.getParentPaht());
 				}
 				System.out.println("---------------------------");
 			}
@@ -127,4 +130,30 @@ public class OneDriveController {
 
 	}
 
+	
+	@RequestMapping(value = "/mainFolder", method = RequestMethod.GET)
+	public BaseResponse mainFolderUpdate(HttpServletRequest  request) throws Exception {
+		try{
+		} catch (Exception e) {
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			throw e;
+		}
+		return null;
+
+	}
+	
+	@RequestMapping(value = "/subscribeWebHook", method = RequestMethod.GET)
+	public BaseResponse mainFolderUpdate() throws Exception {
+		try{
+			OneDriveAPI.subscribeWebHook(AdanApplication.OneDriveSession,"/fabianfafa@hotmail.com/drive/root/1On1[Test]","https://10localoffice.tallerdelsoftware.com/api/oneDrive/mainFolder");
+		} catch (Exception e) {
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			e.printStackTrace(pw);
+			throw e;
+		}
+		return null;
+	}
 }
